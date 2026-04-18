@@ -41,6 +41,6 @@ class Context:
     found_categories: list[Category]
     found_category_hints: list[Category]
 
-def analyze_file(filename: str) -> Context | list[Context]:
+def analyze_file(filename: str) -> list[Context]:
     # TODO
     return []
