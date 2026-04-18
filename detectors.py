@@ -1,10 +1,31 @@
 import re
+from functools import lru_cache
 from typing import Dict, List
+
+from natasha import Segmenter, NewsNERTagger, NewsEmbedding, Doc
 
 from data import (
     CommonCategory, GovernmentCategory, PaymentCategory,
     BiometricCategory, SpecialCategory, Category,
 )
+
+
+@lru_cache(maxsize=1)
+def _ner_components():
+    emb = NewsEmbedding()
+    return Segmenter(), NewsNERTagger(emb)
+
+
+def extract_persons(text: str) -> int:
+    """Возвращает количество уникальных персон (PER) через NER natasha."""
+    if not text or len(text) < 3:
+        return 0
+    segmenter, ner_tagger = _ner_components()
+    doc = Doc(text[:50_000])  # ограничиваем для скорости
+    doc.segment(segmenter)
+    doc.tag_ner(ner_tagger)
+    persons = {span.text for span in doc.spans if span.type == "PER"}
+    return len(persons)
 
 _ALL_CATEGORIES = (
     list(CommonCategory) + list(GovernmentCategory) +
@@ -27,10 +48,6 @@ PHONE_RE = re.compile(
     r")"
 )
 
-FIO_RE = re.compile(
-    r"\b(?:[А-ЯЁ][а-яё]{1,30}\s+[А-ЯЁ][а-яё]{1,30}(?:\s+[А-ЯЁ][а-яё]{1,30})?|"
-    r"[A-Z][a-z]{1,30}(?:\s+[A-Z][a-z]{1,30}){1,2})\b"
-)
 
 DOB_RE = re.compile(
     r"(?:"
@@ -329,9 +346,8 @@ def detect_categories(
     cats[CommonCategory.EMAIL] += count_occurrences(EMAIL_RE, t)
     cats[CommonCategory.PHONE] += count_occurrences(PHONE_RE, t)
 
-    # ФИО: ограничиваем 5-ю, чтобы не раздувать счётчик
-    cats[CommonCategory.NAME] += min(5, count_occurrences(FIO_RE, t))
-    cats[CommonCategory.NAME] += min(3, count_occurrences(FIO_RE, t))
+    # ФИО: через NER natasha
+    cats[CommonCategory.NAME] += extract_persons(t)
 
     # Дата рождения — только с контекстом
     for m in DOB_RE.finditer(t):
