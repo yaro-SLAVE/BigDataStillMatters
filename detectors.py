@@ -304,7 +304,7 @@ def check_columns_fast(columns: List[str]) -> Dict[str, int]:
 def detect_categories(
     text: str,
     column_hints: Dict[str, int] | None = None,
-) -> Dict[str, int]:
+) -> List[str]:
     """
     Анализирует текст и возвращает количество найденных ПДн по категориям.
 
@@ -428,5 +428,5 @@ def detect_categories(
     if any(kw in low for kw in _INTIMATE_KEYS):
         cats[SpecialCategory.INTIMATE] += 1
 
-    return cats
+    return [cat for cat, n in cats.items() if n > 0]
 
