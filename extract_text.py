@@ -14,6 +14,8 @@ import tempfile
 from PIL import Image
 import numpy as np
 
+#pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
 class TextExctractor:
     @classmethod
     def detect_encoding(cls, raw_bytes: bytes) -> str:
@@ -131,8 +133,10 @@ class TextExctractor:
         try:
             from PIL import Image
             img = Image.open(str(path))
-            return pytesseract.image_to_string(img, lang='rus+eng')
-        except Exception:
+            return pytesseract.image_to_string(img, lang='eng+ces')
+                
+        except Exception as e:
+            print(f"OCR Error for {path}: {e}")
             return ''
     
     @classmethod
@@ -141,7 +145,7 @@ class TextExctractor:
         return raw
 
     @classmethod    
-    def extract_text_video(cls, path: Path, frame_interval_sec: float = 0.5) -> str:
+    def extract_text_video(cls, path: Path, frame_interval_sec: float = 0.1) -> str:
         if cv2 is None:
             print(f"OpenCV (cv2) не установлен")
             return ''
