@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
-# from __future__ import annotations
 import os
 from pathlib import Path
-from typing import Dict, List
 from extract_text import TextExctractor
 
 class CommonCategory(StrEnum):
@@ -39,45 +37,129 @@ class SpecialCategory(StrEnum):
     INTIMATE = "интимная жизнь"
 
 Category = CommonCategory | GovernmentCategory | PaymentCategory | BiometricCategory | SpecialCategory
-
-# Контекст - отдельный файл или строка в csv. Для csv хинты общие для всех строк
-@dataclass
-class Context:
-    found_categories: list[Category]
-    found_category_hints: list[Category]
+CategoryType = type[CommonCategory] | type[GovernmentCategory] | type[PaymentCategory] | type[BiometricCategory] | type[SpecialCategory]
 
 ROOT_DIR = Path('../ПДнDataset/share')
 OUTPUT_CSV = Path('results.csv')
 INCLUDE_EXTS = {'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
 #{'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
 
-def analyze_file(path_to_file: Path) -> Context:
+def analyze_file(path_to_file: Path) -> list[Category]:
     text = TextExctractor.extract_text(path_to_file)
     print(text)
-    return Context([], [])
+    return []
 
-# class Level(StrEnum):
-#     UZ1 = "УЗ-1"
-#     UZ2 = "УЗ-2"
-#     UZ3 = "УЗ-3"
-#     UZ4 = "УЗ-4"
+class Level(StrEnum):
+    UZ1 = "УЗ-1"
+    UZ2 = "УЗ-2"
+    UZ3 = "УЗ-3"
+    UZ4 = "УЗ-4"
+    NONE = "нет уровня"
 
-# @dataclass
-# class RuleCategory:
-#     category: Category
-#     min_amount: int
-#     hint: bool = False
+@dataclass
+class RuleCategory:
+    category: Category | CategoryType
+    min_amount: int
 
-# @dataclass
-# class Rule:
-#     categories: list[RuleCategory]
-#     level: Level
+@dataclass
+class Rule:
+    categories: list[RuleCategory]
+    level: Level
+    recommendation: str
 
-# RULES = [
-#     {
-#         CommonCategory.NAME, SpecialCategory.HEALTH
-#     }
-# ]
+THRESHOLD = 10  # Граница "большого объема"
+
+RULES: list[Rule] = [
+    # --- УЗ-1: Специальные категории или Биометрия ---
+    # По картинке: наличие таких категорий — это высокий риск (УЗ-1)
+    Rule(
+        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(SpecialCategory, 1)],
+        level=Level.UZ1,
+        recommendation="Обнаружены специальные категории ПДн (здоровье, взгляды и пр.). Требуется защита уровня УЗ-1: шифрование, строгий контроль доступа и аудит."
+    ),
+    Rule(
+        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(BiometricCategory, 1)],
+        level=Level.UZ1,
+        recommendation="Обнаружена биометрия. Требуется УЗ-1. Необходимо обеспечить защиту от несанкционированного доступа к биометрическим шаблонам."
+    ),
+
+    # --- УЗ-2: Платежная информация или Госы в БОЛЬШИХ объемах ---
+    Rule(
+        categories=[RuleCategory(CommonCategory.NAME, THRESHOLD), RuleCategory(PaymentCategory, THRESHOLD)],
+        level=Level.UZ2,
+        recommendation=f"Платежная информация в объеме более {THRESHOLD} субъектов. Требуется УЗ-2: использование DLP-систем и сегментация сети."
+    ),
+    Rule(
+        categories=[RuleCategory(CommonCategory.NAME, THRESHOLD), RuleCategory(GovernmentCategory, THRESHOLD)],
+        level=Level.UZ2,
+        recommendation=f"Гос. идентификаторы в большом объеме (>{THRESHOLD}). Требуется УЗ-2: усиленная защита учетных записей администраторов."
+    ),
+    Rule(
+        categories=[RuleCategory(BiometricCategory, THRESHOLD)],
+        level=Level.UZ2,
+        recommendation=f"Массовый сбор биометрических шаблонов (>{THRESHOLD}). Требуется защита уровня УЗ-2."
+    ),
+    Rule(
+        categories=[
+            RuleCategory(CommonCategory.NAME, 1), 
+            RuleCategory(GovernmentCategory, 1), 
+            RuleCategory(PaymentCategory, 1)
+        ],
+        level=Level.UZ2,
+        recommendation="Полный профиль (ФИО + Паспорт + Банк). Высочайший риск кражи личности. Уровень УЗ-2."
+    ),
+
+    # --- УЗ-3: Госы в МАЛЫХ объемах или Обычные в БОЛЬШИХ объемах ---
+    Rule(
+        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(GovernmentCategory, 1)],
+        level=Level.UZ3,
+        recommendation="Наличие государственных идентификаторов (паспорт, СНИЛС, ИНН). Требуется УЗ-3: базовые технические меры и ограничение круга лиц."
+    ),
+    Rule(
+        categories=[RuleCategory(CommonCategory.NAME, THRESHOLD), RuleCategory(CommonCategory, THRESHOLD)],
+        level=Level.UZ3,
+        recommendation=f"Массовая обработка обычных ПДн (>{THRESHOLD}). Требуется УЗ-3: регистрация событий безопасности в системе."
+    ),
+    Rule(
+        categories=[RuleCategory(CommonCategory.PHONE, 1), RuleCategory(GovernmentCategory, 1)],
+        level=Level.UZ3,
+        recommendation="Связка Телефон + Гос. идентификатор позволяет установить личность. Уровень УЗ-3."
+    ),
+    Rule(
+        categories=[RuleCategory(CommonCategory.EMAIL, 1), RuleCategory(PaymentCategory, 1)],
+        level=Level.UZ3,
+        recommendation="Связка Email + Платежные данные. Высокий риск мошенничества, требуется УЗ-3."
+    ),
+
+    # --- УЗ-4: Обычные ПДн в МАЛЫХ объемах ---
+    Rule(
+        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(CommonCategory, 1)],
+        level=Level.UZ4,
+        recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
+    ),
+    Rule(
+        categories=[
+            RuleCategory(CommonCategory.NAME, 1), 
+            RuleCategory(CommonCategory.PHONE, 1),
+            RuleCategory(CommonCategory.ADDRESS, 1),
+            RuleCategory(CommonCategory.DATE, 1)
+        ],
+        level=Level.UZ4,
+        recommendation="Развернутый набор обычных ПДн. Базовый уровень защиты УЗ-4."
+    ),
+
+    # --- Дополнительно: Обработка без ФИО (по желанию) ---
+    Rule(
+        categories=[RuleCategory(PaymentCategory, 1)],
+        level=Level.NONE,
+        recommendation="Финансовые данные без ФИО не являются ПДн, но требуют защиты согласно PCI DSS."
+    ),
+    Rule(
+        categories=[],
+        level=Level.NONE,
+        recommendation="Персональные данные не найдены."
+    )
+]
 
 if __name__ == "__main__":
     results = {}
