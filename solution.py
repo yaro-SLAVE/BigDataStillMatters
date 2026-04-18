@@ -48,10 +48,10 @@ class Context:
 
 ROOT_DIR = Path('../ПДнDataset/share')
 OUTPUT_CSV = Path('results.csv')
-INCLUDE_EXTS = {'doc','docx','gif','ipynb','jpeg','jpg','php','png','rtf','xls','mp4','avi','mov','mkv','webm'}
+INCLUDE_EXTS = {'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
 #{'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
 
-def analyze_file(path_to_file: str) -> list[Context]:
+def analyze_file(path_to_file: str) -> Context:
     text = TextExctractor.extract_text(path_to_file)
     print(text)
     return []
