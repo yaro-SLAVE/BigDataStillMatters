@@ -14,7 +14,7 @@ import tempfile
 from PIL import Image
 import numpy as np
 
-#pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 class TextExctractor:
     @classmethod
@@ -133,7 +133,7 @@ class TextExctractor:
         try:
             from PIL import Image
             img = Image.open(str(path))
-            return pytesseract.image_to_string(img, lang='eng+ces')
+            return pytesseract.image_to_string(img, lang='rus+eng')
                 
         except Exception as e:
             print(f"OCR Error for {path}: {e}")
