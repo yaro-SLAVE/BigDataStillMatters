@@ -2,6 +2,7 @@ from enum import StrEnum
 import os
 import json
 import csv
+import datetime
 from pathlib import Path
 from extract_text import TextExctractor
 from data import Category, Rule, RuleCategory, CommonCategory, SpecialCategory, Level, BiometricCategory, GovernmentCategory, PaymentCategory, CategoryType
@@ -137,13 +138,18 @@ def save_csv(results: list[dict[str, object]], out_csv: Path):
     results = [x for x in results if x["uz"] != str(Level.NONE)]
     results.sort(key=lambda x: str(x["uz"]))
 
-    out_csv = Path(out_csv)
-    with out_csv.open('w', newline='', encoding='utf-8') as f:
+    out_csv_cool = Path(str(out_csv) + ".cool")
+    with out_csv_cool.open('w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
         w.writerow(['path','categories','uz','total_hits','ext','recommendation'])
         for r in results:
-            w.writerow([r['path'], json.dumps(r['categories'], ensure_ascii=False), r['uz'], r.get('total_hits',0), r.get('ext','')])
-    return out_csv
+            w.writerow([r['path'], json.dumps(r['categories'], ensure_ascii=False), r['uz'], r.get('total_hits',0), r.get('ext',''), r.get('recommendation','')])
+    
+    with out_csv.open('w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow(['size','time','name'])
+        for r in results:
+            w.writerow([r['size'], r['time'], r['name']])
 
 if __name__ == "__main__":
     total_results: list[dict[str, object]] = []
@@ -157,6 +163,9 @@ if __name__ == "__main__":
                 categories = analyze_file(p)
                 rule = solve_categories(categories)
                 res = {
+                    'size': os.path.getsize(p),
+                    'time': datetime.datetime.fromtimestamp(os.path.getmtime(p)).strftime("%b %d %H:%M").lower(),
+                    'name': name,
                     'path': str(p),
                     'categories': categories,
                     'uz': str(rule.level),
