@@ -3,6 +3,7 @@ from functools import lru_cache
 from typing import Dict, List
 
 from natasha import Segmenter, NewsNERTagger, NewsEmbedding, Doc
+from sentence_transformers import SentenceTransformer
 
 from data import (
     CommonCategory, GovernmentCategory, PaymentCategory,
@@ -14,6 +15,116 @@ from data import (
 def _ner_components():
     emb = NewsEmbedding()
     return Segmenter(), NewsNERTagger(emb)
+
+
+@lru_cache(maxsize=1)
+def _semantic_model():
+    return SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+
+
+# Эталонные фразы для каждой категории
+_SEMANTIC_CATEGORIES = {
+    BiometricCategory.FINGERPRINT: [
+        "отпечаток пальца", "дактилоскопия", "fingerprint", "дактилоскопические данные",
+        "биометрические данные отпечатков", "сканирование отпечатков пальцев",
+        "хранение дактилоскопических данных", "дактилоскопический учёт",
+    ],
+    BiometricCategory.IRIS: [
+        "радужная оболочка глаза", "сканирование сетчатки", "iris scan", "распознавание по радужке",
+    ],
+    BiometricCategory.VOICE: [
+        "голосовой отпечаток", "voice biometrics", "voiceprint", "голосовая биометрия",
+    ],
+    BiometricCategory.FACE: [
+        "распознавание лица", "геометрия лица", "face recognition", "идентификация по лицу",
+    ],
+    BiometricCategory.DNA: [
+        "ДНК анализ", "геном человека", "DNA sample", "анализ ДНК", "генетические данные",
+    ],
+    SpecialCategory.HEALTH: [
+        "диагноз пациента", "состояние здоровья", "медицинская карта", "инвалидность",
+        "медицинский диагноз", "история болезни", "данные о здоровье", "заболевание пациента",
+    ],
+    SpecialCategory.BELIEFS: [
+        "религиозные убеждения", "политические взгляды", "судимость", "вероисповедание",
+        "исповедует религию", "политические убеждения", "уголовная судимость",
+    ],
+    SpecialCategory.RACE: [
+        "расовая принадлежность", "национальность", "этническое происхождение",
+        "этническая принадлежность", "расовая и национальная принадлежность",
+    ],
+    SpecialCategory.INTIMATE: [
+        "сексуальная ориентация", "интимная жизнь", "sexual orientation", "половая принадлежность",
+    ],
+}
+
+_SEMANTIC_THRESHOLD = 0.56
+
+# Точные подстроки-fallback для категорий, которые модель плохо эмбеддит
+# tuple: (include_keywords, exclude_keywords) — exclude защищает от ложных срабатываний
+_KEYWORD_FALLBACK: Dict = {
+    BiometricCategory.FINGERPRINT: (["дактилоскоп", "отпечат", "fingerprint"], []),
+    BiometricCategory.IRIS:        (["радуж", "сетчатк", "iris scan"], []),
+    BiometricCategory.VOICE:       (["голосов", "voiceprint"], []),
+    BiometricCategory.FACE:        (["face recognition", "faceid", "геометрия лица"], []),
+    BiometricCategory.DNA:         (["днк", "dna", "геном"], []),
+    SpecialCategory.HEALTH:        (["диагноз", "анамнез", "инвалид", "медкарт", "нетрудоспособн",
+                                     "психиатр", "психолог", "вич", "спид", "онкол", "хронич"],
+                                    ["healthcheck", "health check", "health endpoint", "health monitor"]),
+    SpecialCategory.BELIEFS:       (["вероисповед", "конфесс", "исповедует", "судимост", "осуждён",
+                                     "уголовн", "conviction"],
+                                    ["third-party", "third party"]),
+    SpecialCategory.RACE:          (["расов", "этническ", "национальност"], []),
+    SpecialCategory.INTIMATE:      (["сексуаль", "ориентац", "интимн"], []),
+}
+
+
+@lru_cache(maxsize=1)
+def _reference_embeddings():
+    model = _semantic_model()
+    return {
+        cat: model.encode(phrases, normalize_embeddings=True)
+        for cat, phrases in _SEMANTIC_CATEGORIES.items()
+    }
+
+
+def semantic_detect(text: str, chunk_size: int = 500) -> Dict:
+    """Делит текст на чанки и ищет семантически близкие категории ПДн."""
+    if not text or len(text) < 10:
+        return {}
+
+    model = _semantic_model()
+    ref_embs = _reference_embeddings()
+
+    # Делим текст на чанки по chunk_size символов с перекрытием 50
+    words = text.split()
+    chunks, buf, buf_len = [], [], 0
+    for word in words:
+        buf.append(word)
+        buf_len += len(word) + 1
+        if buf_len >= chunk_size:
+            chunks.append(" ".join(buf))
+            buf = buf[-10:]  # перекрытие ~10 слов
+            buf_len = sum(len(w) + 1 for w in buf)
+    if buf:
+        chunks.append(" ".join(buf))
+
+    if not chunks:
+        return {}
+
+    chunk_embs = model.encode(chunks, normalize_embeddings=True, batch_size=32)
+
+    low = text.lower()
+    found = {}
+    for cat, ref in ref_embs.items():
+        sims = chunk_embs @ ref.T
+        if sims.max() >= _SEMANTIC_THRESHOLD:
+            found[cat] = 1
+        elif cat in _KEYWORD_FALLBACK:
+            include, exclude = _KEYWORD_FALLBACK[cat]
+            if any(kw in low for kw in include) and not any(kw in low for kw in exclude):
+                found[cat] = 1
+    return found
 
 
 def extract_persons(text: str) -> int:
@@ -35,6 +146,39 @@ _ALL_CATEGORIES = (
 
 def _empty_cats() -> Dict[str, int]:
     return {cat: 0 for cat in _ALL_CATEGORIES}
+
+
+# Признаки публикаций/книг — при наличии любого из них текст не содержит ПДн
+_PUBLICATION_MARKERS = [
+    # Книги и издания
+    "издательство", "издатель", "издано", "издана", "издание",
+    "isbn", "issn", "doi:", "udc ", "удк ", "ббк ",
+    "тираж", "переплёт", "переплет", "суперобложка",
+    "все права защищены", "all rights reserved",
+    "copyright ©", "©", "printed in",
+    # Научные статьи и журналы
+    "аннотация:", "abstract:", "ключевые слова:", "keywords:",
+    "список литературы", "references:", "библиография",
+    "поступила в редакцию", "received:", "accepted:",
+    "журнал ", "вестник ", "сборник статей", "proceedings of",
+    # Учебники и методички
+    "учебник", "учебное пособие", "методическое пособие",
+    "для студентов", "допущено министерством",
+    "рекомендовано к изданию",
+    # Художественная литература
+    "глава ", "глава\n", "часть первая", "часть вторая",
+    "пролог", "эпилог", "предисловие автора",
+    # Нормативные документы (законы, госты — не ПДн людей)
+    "гост р ", "гост р\n", "iso ", "iec ", "din ",
+    "федеральный закон", "постановление правительства",
+    "приказ минист", "технический регламент",
+]
+
+
+def is_publication(text: str) -> bool:
+    """Возвращает True если текст похож на книгу/статью/норматив, а не на ПДн-документ."""
+    low = text[:5000].lower()  # проверяем только начало — маркеры обычно в шапке
+    return any(marker in low for marker in _PUBLICATION_MARKERS)
 
 EMAIL_RE = re.compile(
     r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[A-Za-z]{2,}\b"
@@ -86,11 +230,9 @@ INN10_RE = re.compile(r"(?<!\d)\d{10}(?!\d)")
 INN12_RE = re.compile(r"(?<!\d)\d{12}(?!\d)")
 
 PASSPORT_RU_RE = re.compile(
-    r"(?:"
-    r"(?:паспорт|серия|пасп\.?|passport\s+rf)[^\d]{0,15}"
-    r"|(?<!\d)"
-    r")"
-    r"\d{2}\s?\d{2}\s?\d{6}(?!\d)"
+    r"(?:паспорт|серия|пасп\.?|passport\s+rf)"
+    r"[^\d]{0,30}"
+    r"\d{2}\s?\d{2}[^\d]{0,10}\d{6}(?!\d)"
 )
 
 PASSPORT_EN_RE = re.compile(
@@ -153,34 +295,6 @@ ICD10_RE = re.compile(r"\b[A-Z]\d{2}(?:\.\d{1,2})?\b")
 
 OMS_RE = re.compile(r"(?i)(?:омс|полис\s+омс|enhi)[^\d]{0,10}(\d{16})")
 
-_FINGERPRINT_KEYS: List[str] = ["отпечат", "fingerprint", "дактилоскоп"]
-_IRIS_KEYS:        List[str] = ["радуж", "ирис", "iris", "retina", "сетчатк"]
-_VOICE_KEYS:       List[str] = ["голосов", "voiceprint"]
-_FACE_KEYS:        List[str] = ["лицев", "селфи", "faceid", "face recognition", "геометрия лица"]
-_DNA_KEYS:         List[str] = ["днк", "dna", "геном"]
-
-BIOMETRIC_KEYS: List[str] = _FINGERPRINT_KEYS + _IRIS_KEYS + _VOICE_KEYS + _FACE_KEYS + _DNA_KEYS
-
-_HEALTH_KEYS:  List[str] = [
-    "диагноз", "анамнез", "инвалид", "здоровь", "медицин",
-    "психиатр", "психолог", "вич", "спид", "онкол", "хронич",
-    "нетрудоспособн", "disability", "health", "medical",
-]
-_BELIEFS_KEYS: List[str] = [
-    "религ", "вероисповед", "конфесс", "церков", "мечет",
-    "religion", "faith", "church",
-    "политическ", "партия", "оппозиц", "political", "party",
-    "судимост", "уголовн", "осуждён", "criminal", "conviction",
-]
-_RACE_KEYS:    List[str] = [
-    "национальност", "расов", "этническ", "nationality",
-    "ethnicity", "race", "tribal",
-]
-_INTIMATE_KEYS: List[str] = [
-    "интим", "сексуаль", "sexual", "orientation", "ориентац",
-]
-
-SPECIAL_KEYS: List[str] = _HEALTH_KEYS + _BELIEFS_KEYS + _RACE_KEYS + _INTIMATE_KEYS
 
 # Имена колонок CSV/JSON/Parquet, которые однозначно указывают на ПДн
 PII_COLUMN_MAP: Dict[str, str] = {
@@ -332,6 +446,10 @@ def detect_categories(
         Словарь { категория: количество_вхождений }
     """
     t: str = text if isinstance(text, str) else ""
+
+    if is_publication(t):
+        return []
+
     low: str = t.lower()
 
     cats = _empty_cats()
@@ -420,27 +538,9 @@ def detect_categories(
     if CVV_RE.search(t):
         cats[PaymentCategory.CVV] += 1
 
-    # ── Биометрические ───────────────────────────────────────────────
-    if any(kw in low for kw in _FINGERPRINT_KEYS):
-        cats[BiometricCategory.FINGERPRINT] += 1
-    if any(kw in low for kw in _IRIS_KEYS):
-        cats[BiometricCategory.IRIS] += 1
-    if any(kw in low for kw in _VOICE_KEYS):
-        cats[BiometricCategory.VOICE] += 1
-    if any(kw in low for kw in _FACE_KEYS):
-        cats[BiometricCategory.FACE] += 1
-    if any(kw in low for kw in _DNA_KEYS):
-        cats[BiometricCategory.DNA] += 1
-
-    # ── Специальные ──────────────────────────────────────────────────
-    if any(kw in low for kw in _HEALTH_KEYS):
-        cats[SpecialCategory.HEALTH] += 1
-    if any(kw in low for kw in _BELIEFS_KEYS):
-        cats[SpecialCategory.BELIEFS] += 1
-    if any(kw in low for kw in _RACE_KEYS):
-        cats[SpecialCategory.RACE] += 1
-    if any(kw in low for kw in _INTIMATE_KEYS):
-        cats[SpecialCategory.INTIMATE] += 1
+    # ── Биометрические + Специальные — семантический поиск ──────────
+    for cat, count in semantic_detect(t).items():
+        cats[cat] += count
 
     return [cat for cat, n in cats.items() if n > 0]
 
