@@ -5,6 +5,7 @@ import json
 import csv
 from pathlib import Path
 from extract_text import TextExctractor
+from detectors import detect_categories
 
 class CommonCategory(StrEnum):
     NAME = "ФИО"
@@ -41,7 +42,7 @@ class SpecialCategory(StrEnum):
 Category = CommonCategory | GovernmentCategory | PaymentCategory | BiometricCategory | SpecialCategory
 CategoryType = type[CommonCategory] | type[GovernmentCategory] | type[PaymentCategory] | type[BiometricCategory] | type[SpecialCategory]
 
-ROOT_DIR = Path('../ПДнDataset/share')
+ROOT_DIR = Path('ПДнDataset/share')
 OUTPUT_CSV = Path('results.csv')
 INCLUDE_EXTS = {'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
 #{'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
