@@ -1,74 +1,22 @@
-from dataclasses import dataclass
 from enum import StrEnum
 import os
 import json
 import csv
 from pathlib import Path
 from extract_text import TextExctractor
+from data import Category, Rule, RuleCategory, CommonCategory, SpecialCategory, Level, BiometricCategory, GovernmentCategory, PaymentCategory, CategoryType
 from detectors import detect_categories
 
-class CommonCategory(StrEnum):
-    NAME = "ФИО"
-    PHONE = "телефон"
-    EMAIL = "email"
-    DATE = "дата"
-    ADDRESS = "адрес"
-
-class GovernmentCategory(StrEnum):
-    PASSPORT = "паспортные данные"
-    SNILS = "СНИЛС"
-    INN = "ИНН"
-    DRIVER = "водительское удостоверение"
-    MRZ = "MRZ"
-
-class PaymentCategory(StrEnum):
-    CARD = "номера банковских кард"
-    BANK_NUMBER = "банковские счета и БИК"
-    CVV= "CVV"
-
-class BiometricCategory(StrEnum):
-    FINGERPRINT = "отпечатки пальцев"
-    IRIS = "радужная оболочка глаза"
-    VOICE = "голосовые образцы"
-    FACE = "лицо"
-    DNA = "ДНК"
-
-class SpecialCategory(StrEnum):
-    HEALTH = "данные о состоянии здоровья"
-    BELIEFS = "религиозные и политические убеждения"
-    RACE = "расовая и национальная принадлежность"
-    INTIMATE = "интимная жизнь"
-
-Category = CommonCategory | GovernmentCategory | PaymentCategory | BiometricCategory | SpecialCategory
-CategoryType = type[CommonCategory] | type[GovernmentCategory] | type[PaymentCategory] | type[BiometricCategory] | type[SpecialCategory]
-
-ROOT_DIR = Path('ПДнDataset/share')
-OUTPUT_CSV = Path('results.csv')
+ROOT_DIR = Path('../ПДнDataset/share')
+OUTPUT_CSV = Path('result.csv')
 INCLUDE_EXTS = {'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
 #{'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
 
 def analyze_file(path_to_file: Path) -> list[Category]:
     text = TextExctractor.extract_text(path_to_file)
     print(text)
-    return []
-
-class Level(StrEnum):
-    UZ1 = "УЗ-1"
-    UZ2 = "УЗ-2"
-    UZ3 = "УЗ-3"
-    UZ4 = "УЗ-4"
-    NONE = "нет уровня"
-
-@dataclass
-class RuleCategory:
-    category: Category | CategoryType
-    min_amount: int
-
-@dataclass
-class Rule:
-    categories: list[RuleCategory]
-    level: Level
-    recommendation: str
+    result = detect_categories(text)
+    return result
 
 THRESHOLD = 10  # Граница "большого объема"
 
