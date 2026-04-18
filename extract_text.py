@@ -128,77 +128,12 @@ class TextExctractor:
     def extract_text_image(cls, path: Path) -> str:
         if PIL is None or pytesseract is None:
             return ''
-        try:            
+        try:
+            from PIL import Image
             img = Image.open(str(path))
-            
-            img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            
-            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-            
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            enhanced = clahe.apply(gray)
-            
-            _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            
-            denoised = cv2.medianBlur(binary, 3)
-            
-            enhanced_img = Image.fromarray(denoised)
-        
-            language_configs = [
-                'rus+eng+ces',  # Русский + Английский + Чешский
-                'ces+eng+rus',  # Чешский + Английский + Русский
-                'ces+eng',      # Чешский + Английский
-                'rus+eng',      # Русский + Английский (fallback)
-                'ces',          # Только чешский
-                'eng'           # Только английский
-            ]
-            
-            best_text = ""
-            best_length = 0
-            
-            for lang in language_configs:
-                try:
-                    text = pytesseract.image_to_string(enhanced_img, lang=lang)
-                    text = text.strip()
-                    
-                    if len(text) > best_length:
-                        best_text = text
-                        best_length = len(text)
-                    
-                    if best_length > 100:
-                        break
-                        
-                except Exception as e:
-                    continue
-             
-            if best_length < 10:
-                for lang in language_configs:
-                    try:
-                        text = pytesseract.image_to_string(img, lang=lang)
-                        text = text.strip()
-                        if len(text) > best_length:
-                            best_text = text
-                            best_length = len(text)
-                    except:
-                        continue
-            
-            return best_text
-            
-        except Exception as e:
-            try:
-                from PIL import Image
-                img = Image.open(str(path))
-                
-                for lang in ['rus+eng+ces', 'ces+eng', 'rus+eng', 'ces']:
-                    try:
-                        text = pytesseract.image_to_string(img, lang=lang)
-                        if text and len(text.strip()) > 10:
-                            return text.strip()
-                    except:
-                        continue
-                return ''
-            except:
-                return ''
+            return pytesseract.image_to_string(img, lang='rus+eng')
+        except Exception:
+            return ''
     
     @classmethod
     def extract_text_doc(cls, path: Path) -> str:
@@ -317,10 +252,53 @@ class TextExctractor:
             print(f"  → Ошибка сохранения кадров: {e}")
 
     @classmethod
+    def extract_text_parquet(cls, path: Path) -> str:
+        try:
+            import pandas as pd
+            df = pd.read_parquet(str(path))
+            return df.to_string()
+        except ImportError:
+            return "Parquet support requires pandas and pyarrow"
+        except Exception:
+            return ''
+        
+    @classmethod
+    def extract_text_markdown(cls, path: Path) -> str:
+        text = cls.extract_text_generic(path)
+        text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+        text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+        text = re.sub(r'!\[[^\]]*\]\([^\)]+\)', '', text)
+        text = re.sub(r'```[\s\S]*?```', '', text)
+        text = re.sub(r'`([^`]+)`', r'\1', text)
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)
+        text = re.sub(r'__([^_]+)__', r'\1', text)
+        text = re.sub(r'_([^_]+)_', r'\1', text)
+        return text
+    
+    @classmethod
+    def extract_text_tiff(cls, path: Path) -> str:
+        if PIL is None or pytesseract is None:
+            return ''
+        try:
+            from PIL import Image
+            img = Image.open(str(path))
+            text_parts = []
+            try:
+                while True:
+                    text_parts.append(pytesseract.image_to_string(img, lang='rus+eng'))
+                    img.seek(img.tell() + 1)
+            except EOFError:
+                pass
+            return '\n'.join(text_parts)
+        except Exception:
+            return ''
+
+    @classmethod
     def extract_text(cls, path):
         ext = path.suffix.lower().lstrip('.')
         try:
-            if ext in {'mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'm4v'}:
+            if ext in {'mp4'}:
                 return cls.extract_text_video(path, frame_interval_sec=0.5)
             elif ext == 'pdf':
                 return cls.extract_text_pdf(path)
@@ -338,8 +316,15 @@ class TextExctractor:
                 return cls.extract_text_image(path)
             elif ext == 'doc':
                 return cls.extract_text_doc(path)
+            elif ext in {'parquet'}:
+                return cls.extract_text_parquet(path)
+            elif ext in {'md'}:
+                return cls.extract_text_markdown(path)
+            elif ext in {'tiff', 'tif'}:
+                return cls.extract_text_tiff(path)
             else:
                 return cls.extract_text_generic(path)
         except Exception as e:
             print(f"  ✗ Ошибка в extract_text для {path.name}: {e}")
             return ''
+        
