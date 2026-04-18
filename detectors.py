@@ -332,8 +332,8 @@ def detect_categories(
     cats[CommonCategory.PHONE] += count_occurrences(PHONE_RE, t)
 
     # ФИО: ограничиваем 5-ю, чтобы не раздувать счётчик
-    cats[CommonCategory.NAME] += min(5, count_occurrences(FIO_RU_RE, t))
-    cats[CommonCategory.NAME] += min(3, count_occurrences(FIO_EN_RE, t))
+    cats[CommonCategory.NAME] += min(5, count_occurrences(FIO_RE, t))
+    cats[CommonCategory.NAME] += min(3, count_occurrences(FIO_RE, t))
 
     # Дата рождения — только с контекстом
     for m in DOB_RE.finditer(t):
