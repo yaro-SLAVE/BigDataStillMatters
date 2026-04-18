@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import StrEnum
 import os
+import json
+import csv
 from pathlib import Path
 from extract_text import TextExctractor
 
@@ -153,16 +155,49 @@ RULES: list[Rule] = [
         categories=[RuleCategory(PaymentCategory, 1)],
         level=Level.NONE,
         recommendation="Финансовые данные без ФИО не являются ПДн, но требуют защиты согласно PCI DSS."
-    ),
-    Rule(
+    )
+]
+
+def solve_categories(categories: list[Category]) -> Rule:
+    counted_categories: dict[Category | CategoryType, int] = {}
+    for category in categories:
+        if category in counted_categories:
+            counted_categories[category] += 1
+        else:
+            counted_categories[category] = 1
+        if type(category) in counted_categories:
+            counted_categories[type(category)] += 1
+        else:
+            counted_categories[type(category)] = 1
+
+    for rule in RULES:
+        rule_applies = True
+        for rule_category in rule.categories:
+            rule_applies &= rule_category.category in counted_categories and counted_categories[rule_category.category] >= rule_category.min_amount
+        if rule_applies:
+            return rule
+
+    return Rule(
         categories=[],
         level=Level.NONE,
         recommendation="Персональные данные не найдены."
     )
-]
+
+def save_csv(results: list[dict[str, object]], out_csv: Path):
+    # убираем uz none и сортируем
+    results = [x for x in results if x["uz"] != str(Level.NONE)]
+    results.sort(key=lambda x: str(x["uz"]))
+
+    out_csv = Path(out_csv)
+    with out_csv.open('w', newline='', encoding='utf-8') as f:
+        w = csv.writer(f)
+        w.writerow(['path','categories','uz','total_hits','ext','recommendation'])
+        for r in results:
+            w.writerow([r['path'], json.dumps(r['categories'], ensure_ascii=False), r['uz'], r.get('total_hits',0), r.get('ext','')])
+    return out_csv
 
 if __name__ == "__main__":
-    results = {}
+    total_results: list[dict[str, object]] = []
     for dirpath, dirnames, filenames in os.walk(ROOT_DIR):
         for name in filenames:
             p = Path(dirpath) / name
@@ -170,7 +205,18 @@ if __name__ == "__main__":
             if ext not in INCLUDE_EXTS:
                 continue
             try:
-                context = analyze_file(p)
+                categories = analyze_file(p)
+                rule = solve_categories(categories)
+                res = {
+                    'path': str(p),
+                    'categories': categories,
+                    'uz': str(rule.level),
+                    'total_hits': len(categories),
+                    'ext': ext,
+                    'recommendation': rule.recommendation
+                }
+                total_results.append(res)
             except Exception as e:
-                pass
-            print(name)
+                total_results.append({'path': str(p), 'categories': {}, 'uz': 'error', 'error': str(e), 'ext': ext})
+            print(f"{name} {len(total_results)} {total_results[-1]["uz"]}")
+    save_csv(total_results, OUTPUT_CSV)
