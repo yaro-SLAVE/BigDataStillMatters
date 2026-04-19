@@ -4,7 +4,7 @@ import json
 import csv
 import datetime
 from pathlib import Path
-from extract_text import TextExctractor
+from extract_text import TextExtractor
 from data import Category, Rule, RuleCategory, CommonCategory, SpecialCategory, Level, BiometricCategory, GovernmentCategory, PaymentCategory, CategoryType
 from detectors import detect_categories
 
@@ -14,7 +14,7 @@ INCLUDE_EXTS = {'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'x
 #{'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
 
 def analyze_file(path_to_file: Path) -> list[Category]:
-    text = TextExctractor.extract_text(path_to_file)
+    text = TextExtractor.extract_text(path_to_file)
     print(text)
     result = detect_categories(text)
     return result

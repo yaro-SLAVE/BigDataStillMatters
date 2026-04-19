@@ -188,8 +188,8 @@ def is_publication(text: str) -> bool:
     
 #     # Проверяем наличие года публикации в формате ", YYYY" в начале или конце текста
 #     text_len = len(text)
-#     start_part = text[:10000] if text_len > 10000 else text
-#     end_part = text[-10000:] if text_len > 10000 else text
+#     start_part = text[:5000] if text_len > 5000 else text
+#     end_part = text[-5000:] if text_len > 5000 else text
     
 #     # Регулярное выражение для поиска ", 19XX" или ", 20XX" (годы 1900-2099)
 #     year_pattern = re.compile(r',\s+(19[0-9]{2}|20[0-9]{2})')
