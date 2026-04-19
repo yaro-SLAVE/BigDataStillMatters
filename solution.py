@@ -83,6 +83,11 @@ RULES: list[Rule] = [
         level=Level.UZ3,
         recommendation="Связка Email + Платежные данные. Высокий риск мошенничества, требуется УЗ-3."
     ),
+    Rule(
+        categories=[RuleCategory(GovernmentCategory, 5)],
+        level=Level.UZ3,
+        recommendation="Гос данные, требуется УЗ-3."
+    ),
 
     # --- УЗ-4: Обычные ПДн в МАЛЫХ объемах ---
     Rule(
