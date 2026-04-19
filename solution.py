@@ -16,7 +16,8 @@ INCLUDE_EXTS = {'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'x
 def analyze_file(path_to_file: Path) -> list[Category]:
     text = TextExtractor.extract_text(path_to_file)
     print(text)
-    result = detect_categories(text)
+    csv_columns = text.split('\n')[0].split(',') if str(path_to_file).endswith((".csv")) else None
+    result = detect_categories(text, csv_columns)
     return result
 
 THRESHOLD = 10  # Граница "большого объема"
@@ -25,12 +26,12 @@ RULES: list[Rule] = [
     # --- УЗ-1: Специальные категории или Биометрия ---
     # По картинке: наличие таких категорий — это высокий риск (УЗ-1)
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(SpecialCategory, 1)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(SpecialCategory, 3)],
         level=Level.UZ1,
         recommendation="Обнаружены специальные категории ПДн (здоровье, взгляды и пр.). Требуется защита уровня УЗ-1: шифрование, строгий контроль доступа и аудит."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(BiometricCategory, 1)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(BiometricCategory, 3)],
         level=Level.UZ1,
         recommendation="Обнаружена биометрия. Требуется УЗ-1. Необходимо обеспечить защиту от несанкционированного доступа к биометрическим шаблонам."
     ),
@@ -53,9 +54,9 @@ RULES: list[Rule] = [
     ),
     Rule(
         categories=[
-            RuleCategory(CommonCategory.NAME, 1), 
-            RuleCategory(GovernmentCategory, 1), 
-            RuleCategory(PaymentCategory, 1)
+            RuleCategory(CommonCategory.NAME, 2), 
+            RuleCategory(GovernmentCategory, 3), 
+            RuleCategory(PaymentCategory, 3)
         ],
         level=Level.UZ2,
         recommendation="Полный профиль (ФИО + Паспорт + Банк). Высочайший риск кражи личности. Уровень УЗ-2."
@@ -63,7 +64,7 @@ RULES: list[Rule] = [
 
     # --- УЗ-3: Госы в МАЛЫХ объемах или Обычные в БОЛЬШИХ объемах ---
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(GovernmentCategory, 1)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(GovernmentCategory, 2)],
         level=Level.UZ3,
         recommendation="Наличие государственных идентификаторов (паспорт, СНИЛС, ИНН). Требуется УЗ-3: базовые технические меры и ограничение круга лиц."
     ),
@@ -73,53 +74,36 @@ RULES: list[Rule] = [
         recommendation=f"Массовая обработка обычных ПДн (>{THRESHOLD}). Требуется УЗ-3: регистрация событий безопасности в системе."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.PHONE, 1), RuleCategory(GovernmentCategory, 1)],
+        categories=[RuleCategory(CommonCategory.PHONE, 2), RuleCategory(GovernmentCategory, 2)],
         level=Level.UZ3,
         recommendation="Связка Телефон + Гос. идентификатор позволяет установить личность. Уровень УЗ-3."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.EMAIL, 1), RuleCategory(PaymentCategory, 1)],
+        categories=[RuleCategory(CommonCategory.EMAIL, 1), RuleCategory(PaymentCategory, 2)],
         level=Level.UZ3,
         recommendation="Связка Email + Платежные данные. Высокий риск мошенничества, требуется УЗ-3."
     ),
 
     # --- УЗ-4: Обычные ПДн в МАЛЫХ объемах ---
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(CommonCategory.ADDRESS, 1)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.ADDRESS, 3)],
         level=Level.UZ4,
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(CommonCategory.EMAIL, 1)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.EMAIL, 3)],
         level=Level.UZ4,
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(CommonCategory.PHONE, 1)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.PHONE, 3)],
         level=Level.UZ4,
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(CommonCategory.DATE, 1)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.DATE, 3)],
         level=Level.UZ4,
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
-    ),
-    Rule(
-        categories=[
-            RuleCategory(CommonCategory.NAME, 1), 
-            RuleCategory(CommonCategory.PHONE, 1),
-            RuleCategory(CommonCategory.ADDRESS, 1),
-            RuleCategory(CommonCategory.DATE, 1)
-        ],
-        level=Level.UZ4,
-        recommendation="Развернутый набор обычных ПДн. Базовый уровень защиты УЗ-4."
-    ),
-
-    # --- Дополнительно: Обработка без ФИО (по желанию) ---
-    Rule(
-        categories=[RuleCategory(PaymentCategory, 1)],
-        level=Level.NONE,
-        recommendation="Финансовые данные без ФИО не являются ПДн, но требуют защиты согласно PCI DSS."
     )
 ]
 

@@ -58,25 +58,7 @@ _SEMANTIC_CATEGORIES = {
     ],
 }
 
-_SEMANTIC_THRESHOLD = 0.56
-
-# Точные подстроки-fallback для категорий, которые модель плохо эмбеддит
-# tuple: (include_keywords, exclude_keywords) — exclude защищает от ложных срабатываний
-_KEYWORD_FALLBACK: Dict = {
-    BiometricCategory.FINGERPRINT: (["дактилоскоп", "отпечат", "fingerprint"], []),
-    BiometricCategory.IRIS:        (["радуж", "сетчатк", "iris scan"], []),
-    BiometricCategory.VOICE:       (["голосов", "voiceprint"], []),
-    BiometricCategory.FACE:        (["face recognition", "faceid", "геометрия лица"], []),
-    BiometricCategory.DNA:         (["днк", "dna", "геном"], []),
-    SpecialCategory.HEALTH:        (["диагноз", "анамнез", "инвалид", "медкарт", "нетрудоспособн",
-                                     "психиатр", "психолог", "вич", "спид", "онкол", "хронич"],
-                                    ["healthcheck", "health check", "health endpoint", "health monitor"]),
-    SpecialCategory.BELIEFS:       (["вероисповед", "конфесс", "исповедует", "судимост", "осуждён",
-                                     "уголовн", "conviction"],
-                                    ["third-party", "third party"]),
-    SpecialCategory.RACE:          (["расов", "этническ", "национальност"], []),
-    SpecialCategory.INTIMATE:      (["сексуаль", "ориентац", "интимн"], []),
-}
+_SEMANTIC_THRESHOLD = 0.9
 
 
 @lru_cache(maxsize=1)
@@ -120,10 +102,6 @@ def semantic_detect(text: str, chunk_size: int = 500) -> Dict:
         sims = chunk_embs @ ref.T
         if sims.max() >= _SEMANTIC_THRESHOLD:
             found[cat] = 1
-        elif cat in _KEYWORD_FALLBACK:
-            include, exclude = _KEYWORD_FALLBACK[cat]
-            if any(kw in low for kw in include) and not any(kw in low for kw in exclude):
-                found[cat] = 1
     return found
 
 
@@ -144,7 +122,7 @@ _ALL_CATEGORIES = (
 )
 
 
-def _empty_cats() -> Dict[str, int]:
+def _empty_cats() -> Dict[Category, int]:
     return {cat: 0 for cat in _ALL_CATEGORIES}
 
 
@@ -199,18 +177,9 @@ def is_publication(text: str) -> bool:
     
     return False
 
-EMAIL_RE = re.compile(
-    r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[A-Za-z]{2,}\b"
-)
+EMAIL_RE = re.compile(r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[A-Za-z]{2,}\b")
 
-PHONE_RE = re.compile(
-    r"(?:"
-    r"(?:\+7|8)[\s\-]?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}"   # RU: +7/8
-    r"|(?:\+(?!7)\d{1,3})[\s\-]?\(?\d{1,4}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,9}" # Международный
-    r"|\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}"                                  # US/CA: (XXX) XXX-XXXX
-    r")"
-)
-
+PHONE_RE = re.compile(r"(?:(?:\+7|8)\s*\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2})")
 
 DOB_RE = re.compile(
     r"(?:"
@@ -237,22 +206,14 @@ ADDRESS_RE = re.compile(
     r")"
 )
 
-INDEX_RE = re.compile(
-    r"(?:"
-    r"\b\d{6}\b"                                  # RU
-    r")"
-)
+INDEX_RE = re.compile(r"\b\d{6}\b")
 
 SNILS_RE = re.compile(r"\b\d{3}-\d{3}-\d{3}\s?\d{2}\b")
 
 INN10_RE = re.compile(r"(?<!\d)\d{10}(?!\d)")
 INN12_RE = re.compile(r"(?<!\d)\d{12}(?!\d)")
 
-PASSPORT_RU_RE = re.compile(
-    r"(?:паспорт|серия|пасп\.?|passport\s+rf)"
-    r"[^\d]{0,30}"
-    r"\d{2}\s?\d{2}[^\d]{0,10}\d{6}(?!\d)"
-)
+PASSPORT_RU_RE = re.compile(r"(?:(?<!\d)\d{2}\s?\d{2}\s?\d{6}(?!\d))")
 
 PASSPORT_EN_RE = re.compile(
     r"(?i)(?:passport\s*(?:no\.?|number|#|num)?\s*:?\s*)?[A-Z]{1,2}\d{6,8}\b"
@@ -260,10 +221,7 @@ PASSPORT_EN_RE = re.compile(
 
 MRZ_RE = re.compile(r"[PVC]<[A-Z]{3}[A-Z<]{3,}")
 
-DL_RU_RE = re.compile(
-    r"(?i)(?:вод(?:ит(?:ельское)?)?\s+удост(?:оверение)?[^\d]{0,15})"
-    r"(\d{2}\s?\d{2}\s?\d{6})"
-)
+DL_RU_RE = re.compile(r"(?<!\d)\d{10,12}(?!\d)")
 
 DL_US_RE = re.compile(
     r"(?i)(?:driver'?s?\s+licen[sc]e|DL#?|CDL)\s*[:#]?\s*([A-Z0-9\-]{5,16})"
@@ -274,41 +232,14 @@ SSN_RE = re.compile(
     r"(?<!\d)(?!000|666|9\d{2})\d{3}[-\s]?(?!00)\d{2}[-\s]?(?!0000)\d{4}(?!\d)"
 )
 
-CARD_RE = re.compile(
-    r"(?<!\d)"
-    r"(?:4\d{3}|5[1-5]\d{2}|2\d{3}|3[47]\d{2}|6(?:011|5\d{2}))"  # BIN
-    r"(?:[\s\-]?\d{4}){2,3}"
-    r"(?:[\s\-]?\d{1,4})?"
-    r"(?!\d)"
-)
-
-CVV_RE = re.compile(r"\b(?:CVV2?|CVC2?|CSC)\b[\s:]*\d{3,4}", re.IGNORECASE)
-
-RS_RE = re.compile(
-    r"(?i)(?:р/?с\.?|расч[её]тн(?:ый)?\s+сч[её]т|счёт\s*№?)[^\d]{0,8}(\d{20})"
-)
-
-BIK_RE = re.compile(r"(?i)(?:бик|BIK)[^\d]{0,5}(\d{9})")
+CARD_RE = re.compile(r"(?:(?:\d[ -]*?){13,19})")
+CVV_RE = re.compile(r"\b(CVV|CVC|CVV2)\b", re.IGNORECASE)
+RS_RE = re.compile(r"(?i)(?:р/с|расч[её]тн(?:ый)?\s+сч[её]т)[^\d]*(\d{20})")
+BIK_RE = re.compile(r"(?i)бик[^\d]*(\d{9})")
 
 IBAN_RE = re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}[A-Z0-9]{0,16}\b")
 
 SWIFT_RE = re.compile(r"\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b")
-
-ROUTING_RE = re.compile(
-    r"(?i)(?:routing\s*(?:no\.?|number|#)?\s*:?\s*)(\d{9})\b"
-)
-
-IPV4_RE = re.compile(
-    r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}"
-    r"(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b"
-)
-
-IPV6_RE = re.compile(
-    r"\b(?:[A-Fa-f0-9]{1,4}:){2,7}[A-Fa-f0-9]{1,4}\b"
-)
-
-MAC_RE = re.compile(r"\b(?:[0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}\b")
-
 
 ICD10_RE = re.compile(r"\b[A-Z]\d{2}(?:\.\d{1,2})?\b")
 
@@ -316,7 +247,7 @@ OMS_RE = re.compile(r"(?i)(?:омс|полис\s+омс|enhi)[^\d]{0,10}(\d{16})
 
 
 # Имена колонок CSV/JSON/Parquet, которые однозначно указывают на ПДн
-PII_COLUMN_MAP: Dict[str, str] = {
+PII_COLUMN_MAP: Dict[str, Category] = {
     # Обычные
     "email": CommonCategory.EMAIL, "e-mail": CommonCategory.EMAIL, "почта": CommonCategory.EMAIL,
     "phone": CommonCategory.PHONE, "телефон": CommonCategory.PHONE, "mobile": CommonCategory.PHONE,
@@ -413,46 +344,14 @@ def inn_valid(inn: str) -> bool:
         return c1 == d[10] and c2 == d[11]
     return False
 
-
-def mask_value(value: str) -> str:
-    """
-    Маскирует найденное значение для безопасного включения в отчёт.
-    Сохраняет первые 2 и последние 2 символа.
-    """
-    v = value.strip()
-    if len(v) <= 4:
-        return "*" * len(v)
-    return v[:2] + "*" * (len(v) - 4) + v[-2:]
-
-
 def find_cards(text: str) -> List[str]:
     """Ищет номера карт и фильтрует по алгоритму Луна."""
     return [m.group(0) for m in CARD_RE.finditer(text) if luhn_check(m.group(0))]
 
-def check_columns_fast(columns: List[str]) -> Dict[str, int]:
-    """
-    Быстрая проверка наличия ПДн по именам колонок CSV/JSON/Parquet.
-    Не требует построчного сканирования данных.
-    Возвращает счётчики по категориям.
-    """
-    cats = _empty_cats()
-    for col in columns:
-        key = col.lower().strip().replace(" ", "_")
-        # Точное совпадение
-        if key in PII_COLUMN_MAP:
-            cats[PII_COLUMN_MAP[key]] += 1
-            continue
-        # Частичное совпадение по подстрокам
-        for pattern, category in PII_COLUMN_MAP.items():
-            if pattern in key:
-                cats[category] += 1
-                break
-    return cats
-
 def detect_categories(
     text: str,
-    column_hints: Dict[str, int] | None = None,
-) -> List[str]:
+    column_hints: List[str] | None = None,
+) -> List[Category]:
     """
     Анализирует текст и возвращает количество найденных ПДн по категориям.
 
@@ -473,11 +372,21 @@ def detect_categories(
 
     cats = _empty_cats()
 
-    # Добавляем подсказки от колонок (без дублирования)
+    # Быстрая проверка наличия ПДн по именам колонок CSV/JSON/Parquet.
+    # Не требует построчного сканирования данных.
+    # Возвращает счётчики по категориям.
     if column_hints:
-        for k, v in column_hints.items():
-            if k in cats:
-                cats[k] += v
+        for col in column_hints:
+            key = col.lower().strip().replace(" ", "_")
+            # Точное совпадение
+            if key in PII_COLUMN_MAP:
+                cats[PII_COLUMN_MAP[key]] += 1
+                continue
+            # Частичное совпадение по подстрокам
+            for pattern, category in PII_COLUMN_MAP.items():
+                if pattern in key:
+                    cats[category] += 1
+                    break
 
     # ── Обычные ──────────────────────────────────────────────────────
     cats[CommonCategory.EMAIL] += count_occurrences(EMAIL_RE, t)
@@ -508,6 +417,7 @@ def detect_categories(
     cats[CommonCategory.ADDRESS] += count_occurrences(ADDRESS_RE, t)
 
     # ── Государственные ─────────────────────────────────────────────
+    cats[GovernmentCategory.SNILS] += count_occurrences(OMS_RE, t)
     for m in SNILS_RE.finditer(t):
         if snils_valid(m.group(0)):
             cats[GovernmentCategory.SNILS] += 1
@@ -528,6 +438,8 @@ def detect_categories(
             cats[GovernmentCategory.PASSPORT] += 1
 
     cats[GovernmentCategory.PASSPORT] += count_occurrences(PASSPORT_EN_RE, t)
+    cats[GovernmentCategory.PASSPORT] += 5 if "identification" in t else 0
+    cats[GovernmentCategory.PASSPORT] += 5 if "Identification" in t else 0
 
     for m in DL_RU_RE.finditer(t):
         cats[GovernmentCategory.DRIVER] += 1
@@ -552,7 +464,6 @@ def detect_categories(
     cats[PaymentCategory.BANK_NUMBER] += count_occurrences(RS_RE, t)
     cats[PaymentCategory.BANK_NUMBER] += count_occurrences(BIK_RE, t)
     cats[PaymentCategory.BANK_NUMBER] += count_occurrences(IBAN_RE, t)
-    cats[PaymentCategory.BANK_NUMBER] += count_occurrences(ROUTING_RE, t)
 
     if CVV_RE.search(t):
         cats[PaymentCategory.CVV] += 1
