@@ -16,7 +16,7 @@ INCLUDE_EXTS = {'mp4', 'jpg', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md
 def analyze_file(path_to_file: Path) -> list[Category]:
     text = TextExtractor.extract_text(path_to_file)
     print(text)
-    csv_columns = text.split('\n')[0].split(',') if str(path_to_file).endswith((".csv")) else None
+    csv_columns = None # text.split('\n')[0].split(',') if str(path_to_file).endswith((".csv")) else None
     result = detect_categories(text, csv_columns)
     return result
 
@@ -26,12 +26,12 @@ RULES: list[Rule] = [
     # --- УЗ-1: Специальные категории или Биометрия ---
     # По картинке: наличие таких категорий — это высокий риск (УЗ-1)
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(SpecialCategory, 3)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(SpecialCategory, 2)],
         level=Level.UZ1,
         recommendation="Обнаружены специальные категории ПДн (здоровье, взгляды и пр.). Требуется защита уровня УЗ-1: шифрование, строгий контроль доступа и аудит."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(BiometricCategory, 3)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(BiometricCategory, 2)],
         level=Level.UZ1,
         recommendation="Обнаружена биометрия. Требуется УЗ-1. Необходимо обеспечить защиту от несанкционированного доступа к биометрическим шаблонам."
     ),
@@ -55,8 +55,8 @@ RULES: list[Rule] = [
     Rule(
         categories=[
             RuleCategory(CommonCategory.NAME, 2), 
-            RuleCategory(GovernmentCategory, 3), 
-            RuleCategory(PaymentCategory, 3)
+            RuleCategory(GovernmentCategory, 2), 
+            RuleCategory(PaymentCategory, 2)
         ],
         level=Level.UZ2,
         recommendation="Полный профиль (ФИО + Паспорт + Банк). Высочайший риск кражи личности. Уровень УЗ-2."
@@ -84,7 +84,7 @@ RULES: list[Rule] = [
         recommendation="Связка Email + Платежные данные. Высокий риск мошенничества, требуется УЗ-3."
     ),
     Rule(
-        categories=[RuleCategory(GovernmentCategory, 5)],
+        categories=[RuleCategory(GovernmentCategory, 3)],
         level=Level.UZ3,
         recommendation="Гос данные, требуется УЗ-3."
     ),

@@ -58,7 +58,7 @@ _SEMANTIC_CATEGORIES = {
     ],
 }
 
-_SEMANTIC_THRESHOLD = 0.9
+_SEMANTIC_THRESHOLD = 0.7
 
 
 @lru_cache(maxsize=1)
@@ -426,7 +426,7 @@ def detect_categories(
 
     for m in PASSPORT_RU_RE.finditer(t):
         if has_context(
-            low, m.start(), 20,
+            low, m.start(), 60,
             "паспорт", "серия", "номер", "код подразделения",
         ):
             cats[GovernmentCategory.PASSPORT] += 1
