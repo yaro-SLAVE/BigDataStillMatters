@@ -167,14 +167,14 @@ PROGRAM_RE = re.compile(r"[0-9][0-9].[0-9][0-9].[0-9][0-9]")
 
 def is_publication(text: str) -> bool:
     """Возвращает True если текст похож на книгу/статью/норматив, а не на ПДн-документ."""
-    low = text[:5000].lower()  # проверяем только начало — маркеры обычно в шапке
+    low = text[:500].lower()  # проверяем только начало — маркеры обычно в шапке
     if any(marker in low for marker in _PUBLICATION_MARKERS):
         return True
     
     # Проверяем наличие года публикации в формате ", YYYY" в начале или конце текста
     text_len = len(text)
-    start_part = text[:5000] if text_len > 5000 else text
-    end_part = text[-5000:] if text_len > 5000 else text
+    start_part = text[:500] if text_len > 500 else text
+    end_part = text[-500:] if text_len > 500 else text
     
     # Регулярное выражение для поиска ", 19XX" или ", 20XX" (годы 1900-2099)
     year_pattern = re.compile(r',\s+(19[0-9]{2}|20[0-9]{2})')

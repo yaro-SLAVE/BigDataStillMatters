@@ -54,9 +54,9 @@ RULES: list[Rule] = [
     ),
     Rule(
         categories=[
-            RuleCategory(CommonCategory.NAME, 2), 
-            RuleCategory(GovernmentCategory, 2), 
-            RuleCategory(PaymentCategory, 2)
+            RuleCategory(CommonCategory.NAME, 1), 
+            RuleCategory(GovernmentCategory, 1), 
+            RuleCategory(PaymentCategory, 1)
         ],
         level=Level.UZ2,
         recommendation="Полный профиль (ФИО + Паспорт + Банк). Высочайший риск кражи личности. Уровень УЗ-2."
@@ -64,7 +64,7 @@ RULES: list[Rule] = [
 
     # --- УЗ-3: Госы в МАЛЫХ объемах или Обычные в БОЛЬШИХ объемах ---
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(GovernmentCategory, 2)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(GovernmentCategory, 1)],
         level=Level.UZ3,
         recommendation="Наличие государственных идентификаторов (паспорт, СНИЛС, ИНН). Требуется УЗ-3: базовые технические меры и ограничение круга лиц."
     ),
@@ -74,39 +74,39 @@ RULES: list[Rule] = [
         recommendation=f"Массовая обработка обычных ПДн (>{THRESHOLD}). Требуется УЗ-3: регистрация событий безопасности в системе."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.PHONE, 2), RuleCategory(GovernmentCategory, 2)],
+        categories=[RuleCategory(CommonCategory.PHONE, 2), RuleCategory(GovernmentCategory, 1)],
         level=Level.UZ3,
         recommendation="Связка Телефон + Гос. идентификатор позволяет установить личность. Уровень УЗ-3."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.EMAIL, 1), RuleCategory(PaymentCategory, 2)],
+        categories=[RuleCategory(CommonCategory.EMAIL, 2), RuleCategory(PaymentCategory, 1)],
         level=Level.UZ3,
         recommendation="Связка Email + Платежные данные. Высокий риск мошенничества, требуется УЗ-3."
     ),
     Rule(
-        categories=[RuleCategory(GovernmentCategory, 3)],
+        categories=[RuleCategory(GovernmentCategory, 2)],
         level=Level.UZ3,
         recommendation="Гос данные, требуется УЗ-3."
     ),
 
     # --- УЗ-4: Обычные ПДн в МАЛЫХ объемах ---
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.ADDRESS, 3)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.ADDRESS, 1)],
         level=Level.UZ4,
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.EMAIL, 3)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.EMAIL, 2)],
         level=Level.UZ4,
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.PHONE, 3)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.PHONE, 1)],
         level=Level.UZ4,
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.DATE, 3)],
+        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.DATE, 2)],
         level=Level.UZ4,
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
     )
