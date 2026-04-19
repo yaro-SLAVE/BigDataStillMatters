@@ -91,11 +91,6 @@ RULES: list[Rule] = [
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
     ),
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.EMAIL, 3)],
-        level=Level.UZ4,
-        recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
-    ),
-    Rule(
         categories=[RuleCategory(CommonCategory.NAME, 2), RuleCategory(CommonCategory.PHONE, 3)],
         level=Level.UZ4,
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
