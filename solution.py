@@ -10,7 +10,7 @@ from detectors import detect_categories
 
 ROOT_DIR = Path('../ПДнDataset/share')
 OUTPUT_CSV = Path('result.csv')
-INCLUDE_EXTS = {'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
+INCLUDE_EXTS = {'mp4', 'jpg', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
 #{'mp4', 'jpg', 'html', 'parquet', 'doc', 'tif', 'pdf', 'docx', 'xls', 'md', 'json', 'txt', 'csv', 'rtf', 'gif', 'png'}
 
 def analyze_file(path_to_file: Path) -> list[Category]:
