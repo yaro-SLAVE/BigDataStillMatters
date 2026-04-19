@@ -561,5 +561,4 @@ def detect_categories(
     for cat, count in semantic_detect(t).items():
         cats[cat] += count
 
-    return [cat for cat, n in cats.items() if n > 0]
-
+    return [cat for cat, n in cats.items() for _ in range(n)]
