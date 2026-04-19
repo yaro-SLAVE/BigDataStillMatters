@@ -150,6 +150,10 @@ _PUBLICATION_MARKERS = [
     "гост р ", "гост р\n", "iso ", "iec ", "din ",
     "федеральный закон", "постановление правительства",
     "приказ минист", "технический регламент",
+    # Инструкции
+    "служба поддержки", "импортер", "свяжитесь с нами", "contact us",
+    "правила проведения", "политика обработки персональных данных",
+    "расписание"
 ]
 
 
@@ -210,22 +214,13 @@ INDEX_RE = re.compile(r"\b\d{6}\b")
 
 SNILS_RE = re.compile(r"\b\d{3}-\d{3}-\d{3}\s?\d{2}\b")
 
-INN10_RE = re.compile(r"(?<!\d)\d{10}(?!\d)")
 INN12_RE = re.compile(r"(?<!\d)\d{12}(?!\d)")
 
 PASSPORT_RU_RE = re.compile(r"(?:(?<!\d)\d{2}\s?\d{2}\s?\d{6}(?!\d))")
 
-PASSPORT_EN_RE = re.compile(
-    r"(?i)(?:passport\s*(?:no\.?|number|#|num)?\s*:?\s*)?[A-Z]{1,2}\d{6,8}\b"
-)
-
 MRZ_RE = re.compile(r"[PVC]<[A-Z]{3}[A-Z<]{3,}")
 
 DL_RU_RE = re.compile(r"(?<!\d)\d{10,12}(?!\d)")
-
-DL_US_RE = re.compile(
-    r"(?i)(?:driver'?s?\s+licen[sc]e|DL#?|CDL)\s*[:#]?\s*([A-Z0-9\-]{5,16})"
-)
 
 SSN_RE = re.compile(
     r"(?i)(?:ssn|social\s+security(?:\s+number)?)\s*[:#]?\s*"
@@ -422,30 +417,26 @@ def detect_categories(
         if snils_valid(m.group(0)):
             cats[GovernmentCategory.SNILS] += 1
 
-    for m in INN10_RE.finditer(t):
-        if inn_valid(m.group(0)):
-            cats[GovernmentCategory.INN] += 1
-
     for m in INN12_RE.finditer(t):
         if inn_valid(m.group(0)):
             cats[GovernmentCategory.INN] += 1
 
     for m in PASSPORT_RU_RE.finditer(t):
         if has_context(
-            low, m.start(), 60,
-            "паспорт", "серия", "номер", "код подразделения", "выдан",
+            low, m.start(), 20,
+            "паспорт", "серия", "номер", "код подразделения",
         ):
             cats[GovernmentCategory.PASSPORT] += 1
 
-    cats[GovernmentCategory.PASSPORT] += count_occurrences(PASSPORT_EN_RE, t)
     cats[GovernmentCategory.PASSPORT] += 5 if "identification" in t else 0
     cats[GovernmentCategory.PASSPORT] += 5 if "Identification" in t else 0
 
     for m in DL_RU_RE.finditer(t):
-        cats[GovernmentCategory.DRIVER] += 1
-
-    cats[GovernmentCategory.DRIVER] += count_occurrences(DL_US_RE, t)
-    cats[GovernmentCategory.PASSPORT] += count_occurrences(SSN_RE, t)
+        if has_context(
+            low, m.start(), 60,
+            "водитель"
+        ):
+            cats[GovernmentCategory.DRIVER] += 1
 
     if MRZ_RE.search(t):
         cats[GovernmentCategory.MRZ] += 1
