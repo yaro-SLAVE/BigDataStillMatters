@@ -20,7 +20,7 @@ def analyze_file(path_to_file: Path) -> list[Category]:
     result = detect_categories(text, csv_columns)
     return result
 
-THRESHOLD = 600  # Граница "большого объема"
+THRESHOLD = 3000  # Граница "большого объема"
 
 RULES: list[Rule] = [
     # --- УЗ-1: Специальные категории или Биометрия ---
