@@ -175,29 +175,29 @@ _PUBLICATION_MARKERS = [
 ]
 
 
-def is_publication(text: str) -> bool:
-    """Возвращает True если текст похож на книгу/статью/норматив, а не на ПДн-документ."""
-    low = text[:5000].lower()  # проверяем только начало — маркеры обычно в шапке
-    return any(marker in low for marker in _PUBLICATION_MARKERS)
-
 # def is_publication(text: str) -> bool:
 #     """Возвращает True если текст похож на книгу/статью/норматив, а не на ПДн-документ."""
 #     low = text[:5000].lower()  # проверяем только начало — маркеры обычно в шапке
-#     if any(marker in low for marker in _PUBLICATION_MARKERS):
-#         return True
+#     return any(marker in low for marker in _PUBLICATION_MARKERS)
+
+def is_publication(text: str) -> bool:
+    """Возвращает True если текст похож на книгу/статью/норматив, а не на ПДн-документ."""
+    low = text[:5000].lower()  # проверяем только начало — маркеры обычно в шапке
+    if any(marker in low for marker in _PUBLICATION_MARKERS):
+        return True
     
-#     # Проверяем наличие года публикации в формате ", YYYY" в начале или конце текста
-#     text_len = len(text)
-#     start_part = text[:5000] if text_len > 5000 else text
-#     end_part = text[-5000:] if text_len > 5000 else text
+    # Проверяем наличие года публикации в формате ", YYYY" в начале или конце текста
+    text_len = len(text)
+    start_part = text[:5000] if text_len > 5000 else text
+    end_part = text[-5000:] if text_len > 5000 else text
     
-#     # Регулярное выражение для поиска ", 19XX" или ", 20XX" (годы 1900-2099)
-#     year_pattern = re.compile(r',\s+(19[0-9]{2}|20[0-9]{2})')
+    # Регулярное выражение для поиска ", 19XX" или ", 20XX" (годы 1900-2099)
+    year_pattern = re.compile(r',\s+(19[0-9]{2}|20[0-9]{2})')
     
-#     if year_pattern.search(start_part) or year_pattern.search(end_part):
-#         return True
+    if year_pattern.search(start_part) or year_pattern.search(end_part):
+        return True
     
-#     return False
+    return False
 
 EMAIL_RE = re.compile(
     r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[A-Za-z]{2,}\b"
