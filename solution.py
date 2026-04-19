@@ -85,7 +85,22 @@ RULES: list[Rule] = [
 
     # --- УЗ-4: Обычные ПДн в МАЛЫХ объемах ---
     Rule(
-        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(CommonCategory, 1)],
+        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(CommonCategory.ADDRESS, 1)],
+        level=Level.UZ4,
+        recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
+    ),
+    Rule(
+        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(CommonCategory.EMAIL, 1)],
+        level=Level.UZ4,
+        recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
+    ),
+    Rule(
+        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(CommonCategory.PHONE, 1)],
+        level=Level.UZ4,
+        recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
+    ),
+    Rule(
+        categories=[RuleCategory(CommonCategory.NAME, 1), RuleCategory(CommonCategory.DATE, 1)],
         level=Level.UZ4,
         recommendation="Минимальный набор обычных ПДн. Базовый уровень УЗ-4: антивирусная защита и парольная политика."
     ),
