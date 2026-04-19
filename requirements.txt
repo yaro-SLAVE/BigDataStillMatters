@@ -1,0 +1,15 @@
+natasha
+sentence_transformers
+pytesseract
+pdfminer.six
+PyPDF2
+python-docx
+pandas
+xlrd
+pillow
+pytesseract
+rapidfuzz
+chardet
+beautifulsoup4
+lxml
+opencv-python
