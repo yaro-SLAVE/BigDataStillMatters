@@ -153,8 +153,11 @@ _PUBLICATION_MARKERS = [
     # Инструкции
     "служба поддержки", "импортер", "свяжитесь с нами", "contact us",
     "правила проведения", "политика обработки персональных данных",
-    "расписание"
+    "расписание", "план обучения", "документация", "правила пользования",
+    "инструкция", "руководство пользователя"
 ]
+
+PROGRAM_RE = re.compile(r"[0-9][0-9].[0-9][0-9].[0-9][0-9]")
 
 
 # def is_publication(text: str) -> bool:
@@ -176,7 +179,7 @@ def is_publication(text: str) -> bool:
     # Регулярное выражение для поиска ", 19XX" или ", 20XX" (годы 1900-2099)
     year_pattern = re.compile(r',\s+(19[0-9]{2}|20[0-9]{2})')
     
-    if year_pattern.search(start_part) or year_pattern.search(end_part):
+    if (year_pattern.search(start_part) or year_pattern.search(end_part)) or (PROGRAM_RE.search(start_part) or PROGRAM_RE.search(end_part)) :
         return True
     
     return False
