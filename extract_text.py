@@ -262,7 +262,6 @@ class TextExtractor:  # Fixed typo in class name
     def extract_text_video(cls, path: Path, frame_interval_sec: Optional[float] = None, 
                           max_frames: Optional[int] = None) -> str:
         """Extract text from video frames using OCR"""
-        return "identification card date of birth 08.10.1981 10.01.2012 specimen 10.01.2022 Identification"
         if cv2 is None:
             print(f"OpenCV (cv2) is not installed. Install with: pip install opencv-python")
             return ''
